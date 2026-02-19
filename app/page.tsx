@@ -33,7 +33,7 @@ export default function Home() {
         </div>
 
         <div className="card">
-          <div className="h2">Was du hier demonstrieren kannst</div>
+          <div className="h2">Demo:</div>
           <div className="kpi" style={{ marginTop: 10 }}>
             <div className="kpiBox">
               <div className="small">Skill-Transparenz</div>
@@ -44,7 +44,7 @@ export default function Home() {
               <b>🧪 Quiz</b>
             </div>
             <div className="kpiBox">
-              <div className="small">Nachhaltigkeit</div>
+              <div className="small">Skill-Evaluierung</div>
               <b>🔁 Review</b>
             </div>
           </div>
