@@ -13,7 +13,7 @@ function buildQuestions(skill: Skill): Question[] {
   // simpel & generisch – reicht für Prototyp
   return [
     {
-      q: Welche Aussage passt am besten zu: "${skill.title}"?,
+      q:` Welche Aussage passt am besten zu: "${skill.title}"?`,
       options: [
         "Ich kann das Konzept erklären und auf ein Beispiel anwenden.",
         "Ich habe den Begriff mal gehört, aber kann ihn nicht erklären.",
