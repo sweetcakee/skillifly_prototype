@@ -1,170 +1,135 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useParams } from "next/navigation";
-import Header from "../../components/Header";
-import ResourceForm from "../../components/ResourceForm";
-import SkillList from "../../components/SkillList";
-import QuizModal from "../../components/QuizModal";
-import { mockTopics } from "../../lib/mock";
-import { Resource, Skill, Topic } from "../../lib/types";
+import { Skill } from "../lib/types";
 
-export default function TopicPage() {
-  const params = useParams<{ id: string }>();
-  const topicId = params.id;
+type Question = {
+  q: string;
+  options: string[];
+  correctIndex: number;
+};
 
-  const initial = useMemo(() => {
-    return mockTopics.find(t => t.id === topicId) ?? {
-      id: topicId,
-      title: "Neues Topic",
-      goal: "Lernziel definieren",
-      createdAt: new Date().toISOString(),
-      resources: [],
-      skills: [],
-    } as Topic;
-  }, [topicId]);
+function buildQuestions(skill: Skill): Question[] {
+  // simpel & generisch – reicht für Prototyp
+  return [
+    {
+      q: `Welche Aussage passt am besten zu: "${skill.title}"?`,
+      options: [
+        "Ich kann das Konzept erklären und auf ein Beispiel anwenden.",
+        "Ich habe den Begriff mal gehört, aber kann ihn nicht erklären.",
+        "Ich kenne nur die Definition auswendig.",
+      ],
+      correctIndex: 0,
+    },
+    {
+      q: "Was ist ein gutes Zeichen für echtes Verständnis?",
+      options: [
+        "Ich kann es in eigenen Worten erklären und Fehler erkennen.",
+        "Ich kann es 1:1 aus einem Video nachsprechen.",
+        "Ich erinnere mich an den Thumbnail-Titel.",
+      ],
+      correctIndex: 0,
+    },
+  ];
+}
 
-  const [topic, setTopic] = useState<Topic>(initial);
-  const [loading, setLoading] = useState(false);
+export default function QuizModal({
+  open,
+  skill,
+  onClose,
+  onPassed,
+}: {
+  open: boolean;
+  skill: Skill | null;
+  onClose: () => void;
+  onPassed: () => void;
+}) {
+  const questions = useMemo(() => (skill ? buildQuestions(skill) : []), [skill]);
+  const [idx, setIdx] = useState(0);
+  const [score, setScore] = useState(0);
+  const [done, setDone] = useState(false);
 
-  const [quizOpen, setQuizOpen] = useState(false);
-  const [quizSkillId, setQuizSkillId] = useState<string | null>(null);
+  if (!open || !skill) return null;
 
-  const quizSkill = useMemo(() => {
-    return topic.skills.find(s => s.id === quizSkillId) ?? null;
-  }, [topic.skills, quizSkillId]);
+  function pick(optionIndex: number) {
+    const q = questions[idx];
+    const ok = optionIndex === q.correctIndex;
+    const nextScore = score + (ok ? 1 : 0);
 
-  function addResource(r: Resource) {
-    setTopic({ ...topic, resources: [r, ...topic.resources] });
-  }
-
-  async function analyze() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: topic.title, goal: topic.goal, resources: topic.resources }),
-      });
-      const data = await res.json();
-      setTopic({ ...topic, skills: data.skills as Skill[] });
-    } finally {
-      setLoading(false);
+    if (idx === questions.length - 1) {
+      setScore(nextScore);
+      setDone(true);
+      return;
     }
+    setScore(nextScore);
+    setIdx(idx + 1);
   }
 
-  function toggleSkill(id: string) {
-    setTopic({
-      ...topic,
-      skills: topic.skills.map(s => s.id === id ? {
-        ...s,
-        verified: !s.verified,
-        lastCheckedAt: new Date().toISOString(),
-        confidence: !s.verified ? "high" : s.confidence
-      } : s)
-    });
+  function resetAndClose() {
+    setIdx(0);
+    setScore(0);
+    setDone(false);
+    onClose();
   }
 
-  function openQuiz(skillId: string) {
-    setQuizSkillId(skillId);
-    setQuizOpen(true);
-  }
-
-  function markPassed() {
-    if (!quizSkillId) return;
-    setTopic({
-      ...topic,
-      skills: topic.skills.map(s => s.id === quizSkillId ? {
-        ...s,
-        verified: true,
-        confidence: "high",
-        lastCheckedAt: new Date().toISOString()
-      } : s)
-    });
-  }
-
-  const reviewsDue = useMemo(() => {
-    // simple Regel: low confidence oder unverified = Review
-    return topic.skills.filter(s => !s.verified || s.confidence === "low").length;
-  }, [topic.skills]);
+  const passed = done && score >= Math.ceil(questions.length * 0.7);
 
   return (
-    <div className="container">
-      <Header />
-
-      <div className="card" style={{ marginTop: 18 }}>
+    <div className="modalOverlay" onClick={resetAndClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="row" style={{ justifyContent: "space-between" }}>
-          <div>
-            <div className="h2">{topic.title}</div>
-            <div className="small">{topic.goal}</div>
-          </div>
-
-          <div className="row">
-            <span className="pill">
-              <span className={reviewsDue > 0 ? "dotBad" : "dot"} style={{ width: 8, height: 8, borderRadius: 99, display: "inline-block" }} />
-              {reviewsDue > 0 ? `${reviewsDue} Review(s) empfohlen` : "Alles im grünen Bereich"}
-            </span>
-            <button className="btn btnPrimary" onClick={analyze} disabled={loading || topic.resources.length === 0}>
-              {loading ? "Analysiere…" : "Analyse starten"}
-            </button>
-          </div>
+          <b>Mini-Quiz</b>
+          <button className="btn" onClick={resetAndClose}>Schließen</button>
         </div>
-      </div>
 
-      <div className="grid">
-        <div>
-          <div className="card" style={{ marginTop: 14 }}>
-            <div className="h2">Ressourcen</div>
+        <p className="small" style={{ marginTop: 6 }}>
+          Skill: <b>{skill.title}</b>
+        </p>
+
+        <hr className="sep" />
+
+        {!done ? (
+          <>
+            <div className="h2">{questions[idx].q}</div>
             <div className="list" style={{ marginTop: 10 }}>
-              {topic.resources.length === 0 ? (
-                <p className="p">Noch keine Ressourcen. Füge rechts etwas hinzu.</p>
-              ) : (
-                topic.resources.map(r => (
-                  <div key={r.id} className="card" style={{ padding: 12, background: "rgba(0,0,0,.12)" }}>
-                    <div className="row" style={{ justifyContent: "space-between" }}>
-                      <b>{r.title}</b>
-                      <span className="badge">{r.type}</span>
-                    </div>
-                    {r.url && <div className="small" style={{ marginTop: 6 }}>{r.url}</div>}
-                    {r.note && <div className="small" style={{ marginTop: 6 }}>{r.note}</div>}
-                  </div>
-                ))
-              )}
+              {questions[idx].options.map((opt, i) => (
+                <button key={i} className="btn" style={{ textAlign: "left", borderRadius: 14 }} onClick={() => pick(i)}>
+                  {opt}
+                </button>
+              ))}
             </div>
-          </div>
-
-          <div style={{ marginTop: 14 }}>
-            <SkillList
-              skills={topic.skills}
-              onToggle={toggleSkill}
-              onQuiz={openQuiz}
-            />
-          </div>
-        </div>
-
-        <div style={{ marginTop: 14 }}>
-          <ResourceForm onAdd={addResource} />
-
-          <div className="card" style={{ marginTop: 14 }}>
-            <div className="h2">Prototyp-Logik</div>
+            <div className="small" style={{ marginTop: 10 }}>
+              Frage {idx + 1} / {questions.length}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="h2">{passed ? "Bestanden ✅" : "Noch unsicher 🔁"}</div>
             <p className="p" style={{ marginTop: 8 }}>
-              Die „Analyse“ ist hier eine Mock-API: sie schaut auf Ressourcen-Typen + Keywords und erstellt ein Skill-Set.
-              Später kannst du das durch echtes Scraping + LLM ersetzen.
+              Score: <b>{score}</b> / {questions.length}
             </p>
-            <hr className="sep" />
-            <div className="small">
-              Tipp: Nächster Schritt wäre Persistenz (DB) + Auth + echte Extract/Analyze Pipeline.
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <QuizModal
-        open={quizOpen}
-        skill={quizSkill}
-        onClose={() => setQuizOpen(false)}
-        onPassed={markPassed}
-      />
+            <div className="row" style={{ marginTop: 10 }}>
+              {passed ? (
+                <button
+                  className="btn btnPrimary"
+                  onClick={() => {
+                    onPassed();
+                    resetAndClose();
+                  }}
+                >
+                  Skill als bestätigt markieren
+                </button>
+              ) : (
+                <button className="btn" onClick={() => { setIdx(0); setScore(0); setDone(false); }}>
+                  Nochmal versuchen
+                </button>
+              )}
+              <button className="btn" onClick={resetAndClose}>Schließen</button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
