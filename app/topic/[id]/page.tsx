@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Skill } from "../lib/types";
+import { Skill } from "../../lib/types";
 
 type Question = {
   q: string;
