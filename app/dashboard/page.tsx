@@ -153,7 +153,8 @@ export default function TopicPage() {
             </p>
             <hr className="sep" />
             <div className="small">
-              Nächster Schritt wäre Persistenz (DB) + Auth + echte Extract/Analyze Pipeline.
+              Nächster Schritt wäre Persistenz (DB) + Auth + echte Extract/Analyze Pipeline. 
+              Projekt verfolgen: https://github.com/sweetcakee
             </div>
           </div>
         </div>
